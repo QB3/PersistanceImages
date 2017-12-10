@@ -5,7 +5,6 @@ import pickle as pickle
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from scipy.integrate import quad, dblquad
-import pylab
 
 def RVSimplexTree(points):
     rips_complex = gd.RipsComplex(points,max_edge_length=0.5) 
