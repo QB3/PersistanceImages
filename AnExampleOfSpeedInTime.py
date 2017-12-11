@@ -26,7 +26,7 @@ data_sample = [data_A_sample, data_B_sample, data_C_sample]
 print(data_A_sample.shape)
 
 listData = [data_A, data_B, data_C]
-numberOfSeriesToKeep = 20
+numberOfSeriesToKeep = 30
 homologyDegree = 1
 print("homology degree = ", homologyDegree)
 listDiag = pi.getAllListsDiagram(listData, numberOfSeriesToKeep, homologyDegree)

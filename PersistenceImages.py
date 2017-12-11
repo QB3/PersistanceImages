@@ -57,7 +57,7 @@ def gaussian(arrayDiag, x,y, sigma2, b):
     res = np.sum(res, axis = 1)
     res = res /(2*sigma2)
     res = np.exp(-res)
-    res = res /(np.sqrt(2*np.pi ) * sigma2) #we carefully divide by sigma2 and not sqrt(sigma2) because of the 2-dimensions
+    res = res /(2*np.pi * sigma2) #we carefully divide by sigma2 and not sqrt(sigma2) because of the 2-dimensions
     return res
 
 def getFuction(arrayDiag, x ,y, sigma2, b):
@@ -66,10 +66,47 @@ def getFuction(arrayDiag, x ,y, sigma2, b):
     return value
     
 def integrateOnPixel(arrayDiag, sigma2, b, xStart, xEnd, yStart, yEnd):
-    #print(arrayDiag)
     return dblquad(lambda x, y: getFuction(arrayDiag, x ,y, sigma2, b), yStart, yEnd, lambda x: xStart, lambda x: xEnd)
 
-def persistenceImage(arrayDiag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax):
+def getExpxTx2(arrayDiag0, tabx, sigma2):
+    n = np.shape(arrayDiag0)[0]
+    resx = arrayDiag0[0] - np.tile(tabx, (n, 1))
+    resx = resx**2
+    resx = resx/(2*sigma2)
+    resx = np.exp(-resx)
+    print("resx = ",resx)
+    return resx
+
+def fastInt(arrayDiag, tabx, taby, sigma2, b):
+    resx = getExpxTx2(arrayDiag[:,0], tabx, sigma2)/(2*np.pi * sigma2)
+    resy = getExpxTx2(arrayDiag[:,1], taby, sigma2)
+    diagonalMatrix = weightFunction(arrayDiag, b)
+    diagonalMatrix = np.diag(diagonalMatrix)    
+    print("arrayDiag =", diagonalMatrix)
+    res = np.dot(diagonalMatrix, resx)
+    res = np.dot( np.transpose(resy), res)
+    return res
+
+
+def integrateOnPixelFast(arrayDiag, sigma2, b, xStart, xEnd, yStart, yEnd):
+    lengthMeshx = 10000
+    lengthMeshy = 10000
+    tabx = np.linspace(xStart, xEnd, lengthMeshx)
+    taby = np.linspace(yStart, yEnd, lengthMeshy)
+    valuesOnMesh = fastInt(arrayDiag, tabx ,taby, sigma2, b)
+    valuesOnMesh = valuesOnMesh.cumsum(axis=0).cumsum(axis=1)/(lengthMeshx*lengthMeshy)
+    A = valuesOnMesh[0,0]
+    B = valuesOnMesh[lengthMeshy-1, lengthMeshx-1]
+    C = valuesOnMesh[lengthMeshy -1, 0]
+    D = valuesOnMesh[0, lengthMeshx-1]
+    print(A,B,C,D)
+    res = A + B - C - D
+    return res
+    
+
+def persistenceImage(diag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax):
+    arrayDiag = fromListToArray(diag)
+    arrayDiag[:, 1] = arrayDiag[:, 1] -arrayDiag[:, 0] #here the diagram is trannsformed from B to T(B)
     image = np.zeros((yRes, xRes))
     deltaX = (xMax-xMin)/(xRes+1)
     deltaY = (yMax-yMin)/(yRes+1)
@@ -98,12 +135,62 @@ def fromListToArray(diag):
 
 def persistenceImageFromPtCloud(pt_cloud, homologyDegree, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax):
     diag = ACgetDiagram(pt_cloud, homologyDegree)
-    arrayDiag = fromListToArray(diag)
-    arrayDiag[:, 1] = arrayDiag[:, 1] -arrayDiag[:, 0] #here the diagram is trannsformed from B to T(B)
-    image = persistenceImage(arrayDiag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax)
+    image = persistenceImage(diag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax)
     print(image)
     return image
+
+def getDistMat(listDiag):
+    n=len(listDiag)
+    dist_mat = np.zeros((n,n))
+    i=0
+    for diag1 in listDiag:
+        j=0
+        for diag2 in listDiag:
+            if(j < i):
+                db = gd.bottleneck_distance(diag1,diag2)
+                dist_mat[i,j] = db
+                dist_mat[j,i] = db
+            j=j+1
+        i=i+1
+    return dist_mat
+
+def getLabel(numberOfSeriesToKeep):
+    label_color=[]
+    listeColor=['blue', 'red', 'green']
+    for i in range(3):
+        for j in range(numberOfSeriesToKeep):
+            lettre = listeColor[i]
+            label_color.append(lettre)
+    return label_color
+
+def getListPIfromListDiag(listDiag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax):
+    listPI = []
+    for diag in listDiag:
+        persistIm = persistenceImage(diag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax)
+        listPI.append(persistIm)
+    return listPI
+        
+def getDistMatFromPi(listPI):
+    n=len(listPI)
+    dist_mat = np.zeros((n,n))
+    i=0
+    for PI1 in listPI:
+        j=0
+        for PI2 in listPI:
+            if(j < i):
+                dist = np.sum((PI1 - PI2)**2)
+                dist_mat[i,j] = dist
+                dist_mat[j,i] = dist
+            j=j+1
+        i=i+1
+    return dist_mat
+
+def getDistMatFromListDiag(listDiag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax):
+    listPI = getListPIfromListDiag(listDiag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax)
+    dist_mat = getDistMatFromPi(listPI)
+    return dist_mat
 ###########################################################################################################
+"""
 f = open("data_acc.dat","rb")
 data = pickle.load(f,encoding="latin1")
 f.close()
@@ -172,13 +259,9 @@ plt.show()
 
 #the persitence image :
 res = persistenceImageFromPtCloud(pt_cloud, homologyDegree, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax)
-im=plt.imshow(res)
+plt.imshow(res)
 plt.axis('off')
 plt.colorbar(im)  
 plt.title('Persistance Image')
 plt.show()
-
-
-
-
-
+"""
