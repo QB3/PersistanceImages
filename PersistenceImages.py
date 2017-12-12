@@ -30,10 +30,16 @@ def ACgetDiagram(pt_cloud, homologyDegree):
     diag = st.persistence_intervals_in_dimension(homologyDegree)
     return diag
 
+def RVgetDiagram(pt_cloud, homologyDegree):
+    st = RVSimplexTree(pt_cloud)
+    st.persistence(homology_coeff_field=2, min_persistence=0)
+    diag = st.persistence_intervals_in_dimension(homologyDegree)
+    return diag
+
 def listDiagrams(list_pts_cloud, homologyDegree):
     listDiag = []
     for pt_cloud in list_pts_cloud:
-        diag = ACgetDiagram(pt_cloud, homologyDegree)
+        diag = RVgetDiagram(pt_cloud, homologyDegree)
         listDiag.append(diag)
     return listDiag
         
@@ -89,8 +95,8 @@ def fastInt(arrayDiag, tabx, taby, sigma2, b):
 
 
 def integrateOnPixelFast(arrayDiag, sigma2, b, xStart, xEnd, yStart, yEnd):
-    lengthMeshx = 10000
-    lengthMeshy = 10000
+    lengthMeshx = 100
+    lengthMeshy = 100
     tabx = np.linspace(xStart, xEnd, lengthMeshx)
     taby = np.linspace(yStart, yEnd, lengthMeshy)
     valuesOnMesh = fastInt(arrayDiag, tabx ,taby, sigma2, b)
