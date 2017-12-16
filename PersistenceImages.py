@@ -18,11 +18,14 @@ def ACSimplexTree(pt_cloud):
     diag3 = simplex_tree3.persistence(homology_coeff_field=2, min_persistence=0)
     return simplex_tree3
 
-def ACPlotDiags(pt_cloud):
+def ACPlotDiags(pt_cloud, homologyDegree = 1):
     alpha_complex = gd.AlphaComplex(points=pt_cloud)
     simplex_tree3 = alpha_complex.create_simplex_tree(max_alpha_square=60.0)
     diag3 = simplex_tree3.persistence(homology_coeff_field=2, min_persistence=0)
     gd.plot_persistence_diagram(diag3)
+    diag = simplex_tree3.persistence_intervals_in_dimension(homologyDegree)
+    return diag
+
 
 def ACgetDiagram(pt_cloud, homologyDegree):
     st = ACSimplexTree(pt_cloud)
@@ -39,7 +42,7 @@ def RVgetDiagram(pt_cloud, homologyDegree):
 def listDiagrams(list_pts_cloud, homologyDegree):
     listDiag = []
     for pt_cloud in list_pts_cloud:
-        diag = RVgetDiagram(pt_cloud, homologyDegree)
+        diag = ACgetDiagram(pt_cloud, homologyDegree)
         listDiag.append(diag)
     return listDiag
         
@@ -76,6 +79,7 @@ def integrateOnPixel(arrayDiag, sigma2, b, xStart, xEnd, yStart, yEnd):
 
 def getExpxTx2(arrayDiag0, tabx, sigma2):
     n = np.shape(arrayDiag0)[0]
+    #checker la ligne suivante pour voir si ça produit le résultat voulu
     resx = arrayDiag0[0] - np.tile(tabx, (n, 1))
     resx = resx**2
     resx = resx/(2*sigma2)
@@ -195,6 +199,33 @@ def getDistMatFromListDiag(listDiag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yM
     listPI = getListPIfromListDiag(listDiag, sigma2, b, xRes, yRes, xMin, xMax, yMin, yMax)
     dist_mat = getDistMatFromPi(listPI)
     return dist_mat
+
+
+def getIndivInCluster(clusters, numero, label_color):
+    indivInCluster = clusters[numero]
+    colorInCluster = [label_color[i] for i in indivInCluster]
+    return colorInCluster
+
+def errorInCluster(cluster, nbclusters):
+    count = np.zeros(nbclusters)
+    for point in cluster:
+        if(point == "blue"):
+            count[0] = count[0]+1
+        if(point == "green"):
+            count[1] = count[1]+1
+        if(point == "red"):
+            count[0] = count[0]+1
+        if(point == "yellow"):
+            count[1] = count[1]+1
+        if(point == "black"):
+            count[0] = count[0]+1
+        if(point == "pink"):
+            count[1] = count[1]+1
+    colorCluster = np.argmax(count) 
+    count[colorCluster] = 0
+    res = np.sum(count)
+    return res
+
 ###########################################################################################################
 """
 f = open("data_acc.dat","rb")
